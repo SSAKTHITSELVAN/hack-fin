@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(
     title="Document Q&A API",
-    description="Process documents and answer questions using Gemini AI with parallel processing and enhanced reasoning",
-    version="2.0.0"
+    description="Process documents and answer questions using Gemini AI with parallel processing",
+    version="1.0.0"
 )
 
 # CORS middleware
@@ -48,7 +48,7 @@ _thread_local = threading.local()
 def get_model():
     """Get thread-local Gemini model instance"""
     if not hasattr(_thread_local, 'model'):
-        _thread_local.model = genai.GenerativeModel('gemini-1.5-pro')
+        _thread_local.model = genai.GenerativeModel('gemini-2.5-flash')
     return _thread_local.model
 
 # Pydantic models
@@ -74,7 +74,7 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Security(secu
 
 class GeminiDocumentProcessor:
     def __init__(self, max_concurrent_questions: int = 10):
-        self.model = genai.GenerativeModel('gemini-1.5-pro')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
         self.uploaded_files = {}
         self.max_concurrent_questions = max_concurrent_questions
         # Semaphore to limit concurrent API calls to avoid rate limiting
@@ -138,106 +138,107 @@ class GeminiDocumentProcessor:
     def create_enhanced_prompt(self, question: str) -> str:
         """Create an enhanced prompt for better reasoning and detailed responses"""
         return f"""
-You are an expert document analyst with exceptional reasoning abilities. Your task is to provide comprehensive, well-reasoned answers based on the uploaded document.
+        You are an expert document analyst with exceptional reading comprehension and analytical skills. Your task is to provide comprehensive, well-reasoned answers based on the uploaded document.
 
-QUESTION TO ANALYZE: {question}
+        QUESTION: {question}
 
-REASONING FRAMEWORK - Follow this systematic approach:
+        ANALYSIS FRAMEWORK:
+        Please follow this structured approach to answer the question:
 
-1. DOCUMENT COMPREHENSION:
-   - First, carefully read and understand the entire document context
-   - Identify all sections, chapters, or parts that might be relevant to the question
-   - Note the document's structure, purpose, and key themes
+        1. CONTEXT UNDERSTANDING: First, carefully read and understand the entire document context
+        2. INFORMATION EXTRACTION: Identify all relevant information that relates to the question
+        3. LOGICAL REASONING: Connect different pieces of information and analyze their relationships
+        4. COMPREHENSIVE SYNTHESIS: Combine findings into a coherent, detailed explanation
+        5. VERIFICATION: Cross-reference information to ensure accuracy and completeness
 
-2. QUESTION ANALYSIS:
-   - Break down the question into its core components
-   - Identify what type of information is being requested (factual, analytical, comparative, etc.)
-   - Determine the scope and specificity required in the answer
+        ENHANCED REASONING WITH GEMINI 2.5 CAPABILITIES:
+        - Utilize the advanced reasoning capabilities of Gemini 2.5 Flash
+        - Apply multi-step logical thinking to complex document relationships
+        - Leverage improved contextual understanding for nuanced interpretations
+        - Use enhanced analytical processing for comprehensive document synthesis
 
-3. INFORMATION EXTRACTION:
-   - Systematically search through the document for relevant information
-   - Identify direct statements that address the question
-   - Look for implied or contextual information that supports the answer
-   - Note any related information that provides additional context
+        RESPONSE REQUIREMENTS:
+        - Provide a detailed, elaborate explanation with proper reasoning chains
+        - Include specific evidence, data points, numbers, dates, percentages, and examples from the document
+        - Explain the context and significance of the information with deeper analysis
+        - Show logical connections between different pieces of information across document sections
+        - Address multiple aspects and implications of the question comprehensively
+        - Use clear, professional language with well-structured argumentation
+        - CRITICAL: Your response must be exactly 5 lines long - no more, no less
+        - Each line should contain substantial information and contribute to a complete, detailed answer
+        - Make every line count by packing detailed information while maintaining readability and flow
 
-4. REASONING AND SYNTHESIS:
-   - Connect different pieces of information from various parts of the document
-   - Analyze relationships between concepts, facts, and ideas
-   - Consider the broader context and implications
-   - Identify patterns, trends, or themes that emerge
+        CRITICAL INSTRUCTIONS:
+        - Base your answer ONLY on information explicitly stated in the document
+        - If specific information is not found, state "Information not found in the document" but still provide context about what IS available
+        - Do not make assumptions or add external knowledge not present in the document
+        - Prioritize accuracy and completeness over brevity while respecting the 5-line constraint
+        - Ensure each of the 5 lines provides meaningful, detailed information with clear reasoning
+        - Connect related information across different sections of the document when relevant
+        - Use Gemini 2.5's enhanced thinking capabilities for deeper document analysis
 
-5. RESPONSE CONSTRUCTION:
-   Follow this structure for your detailed answer:
-
-   **DIRECT ANSWER:** Start with a clear, direct response to the question.
-
-   **DETAILED EXPLANATION:** Provide a comprehensive explanation that includes:
-   - Relevant facts, figures, dates, names, and specific details from the document
-   - Context and background information that helps understand the answer
-   - Multiple perspectives or aspects if applicable
-   - Connections between different parts of the document
-
-   **SUPPORTING EVIDENCE:** Reference specific sections, quotes, or data points from the document that support your answer.
-
-   **ADDITIONAL CONTEXT:** Include any relevant supplementary information that enhances understanding of the topic.
-
-   **IMPLICATIONS/SIGNIFICANCE:** If applicable, explain why this information is important or what it means in the broader context.
-
-QUALITY STANDARDS:
-- Be thorough and comprehensive while staying relevant to the question
-- Use specific details, numbers, dates, percentages, and concrete examples from the document
-- Explain technical terms or concepts that might need clarification
-- Show your reasoning process - explain how you arrived at your conclusions
-- If information spans multiple sections, synthesize it coherently
-- Maintain accuracy - only include information that is explicitly stated or clearly implied in the document
-
-ERROR HANDLING:
-- If the information is not found in the document, clearly state: "The requested information is not available in the provided document."
-- If information is partially available, explain what is available and what is missing
-- If there are contradictions in the document, acknowledge and explain them
-- If the question requires information beyond what's in the document, clarify the limitations
-
-RESPONSE TONE:
-- Professional and authoritative
-- Clear and well-structured
-- Detailed but not unnecessarily verbose
-- Accessible to the intended audience
-
-Now, apply this framework to answer the question thoroughly and provide a detailed, well-reasoned response based solely on the document content.
-"""
-
+        FORMAT YOUR RESPONSE:
+        Line 1: [Direct answer with key information, context, and primary evidence]
+        Line 2: [Supporting details, specific data points, metrics, and corroborating evidence]
+        Line 3: [Additional relevant information, broader context, and cross-referenced details]
+        Line 4: [Implications, significance, relationships, and analytical insights]
+        Line 5: [Comprehensive summary, conclusions, and final important contextual details]
+        """
+    
     async def answer_single_question(self, gemini_file, question: str, question_index: int) -> tuple[int, str]:
-        """Answer a single question about the document with enhanced reasoning and rate limiting"""
+        """Answer a single question about the document with rate limiting"""
         async with self.semaphore:
             try:
-                logger.info(f"Processing question {question_index} with enhanced reasoning: {question[:50]}...")
+                logger.info(f"Processing question {question_index}: {question[:50]}...")
                 
                 # Use the enhanced prompt
-                enhanced_prompt = self.create_enhanced_prompt(question)
+                prompt = self.create_enhanced_prompt(question)
                 
                 # Use thread-local model to avoid threading issues
                 loop = asyncio.get_event_loop()
                 
                 def generate_content():
                     model = get_model()
-                    return model.generate_content([enhanced_prompt, gemini_file])
+                    return model.generate_content([prompt, gemini_file])
                 
                 # Run in thread pool to avoid blocking
                 with ThreadPoolExecutor(max_workers=1) as executor:
                     response = await loop.run_in_executor(executor, generate_content)
                 
                 answer = response.text.strip()
-                logger.info(f"Completed enhanced processing for question {question_index}")
                 
-                return question_index, answer
+                # Ensure the response follows the 5-line format
+                lines = answer.split('\n')
+                lines = [line.strip() for line in lines if line.strip()]
+                
+                # If response doesn't have exactly 5 lines, format it properly
+                if len(lines) != 5:
+                    # Try to reformat into 5 substantial lines
+                    if len(lines) < 5:
+                        # Pad with context if needed
+                        while len(lines) < 5:
+                            lines.append("Additional context may be limited in the source document.")
+                    else:
+                        # Consolidate into 5 lines
+                        lines = lines[:5]
+                
+                formatted_answer = '\n'.join(lines)
+                logger.info(f"Completed question {question_index}")
+                
+                return question_index, formatted_answer
                 
             except Exception as e:
                 logger.error(f"Error answering question {question_index}: {str(e)}")
-                return question_index, f"Error processing question: {str(e)}"
+                error_response = f"""Error processing question: {str(e)}
+                The system encountered an issue while analyzing the document.
+                This may be due to document processing limitations or connectivity issues.
+                Please verify the document format and try again with a simpler question.
+                Contact support if the problem persists with properly formatted documents."""
+                return question_index, error_response
     
     async def answer_questions_parallel(self, gemini_file, questions: List[str]) -> List[str]:
-        """Answer multiple questions about the document in parallel with enhanced reasoning"""
-        logger.info(f"Starting enhanced parallel processing of {len(questions)} questions...")
+        """Answer multiple questions about the document in parallel"""
+        logger.info(f"Starting parallel processing of {len(questions)} questions...")
         start_time = time.time()
         
         # Create tasks for all questions
@@ -254,10 +255,15 @@ Now, apply this framework to answer the question thoroughly and provide a detail
                 try:
                     question_index, answer = await coro
                     completed_tasks.append((question_index, answer))
-                    logger.info(f"Enhanced processing progress: {len(completed_tasks)}/{len(questions)} questions completed")
+                    logger.info(f"Progress: {len(completed_tasks)}/{len(questions)} questions completed")
                 except Exception as e:
                     logger.error(f"Task failed: {str(e)}")
-                    completed_tasks.append((len(completed_tasks) + 1, f"Error: {str(e)}"))
+                    error_response = f"""Task processing error: {str(e)}
+                    The parallel processing encountered an unexpected issue.
+                    This may be due to resource constraints or API limitations.
+                    The system will attempt to process remaining questions.
+                    Individual question results may vary in completeness."""
+                    completed_tasks.append((len(completed_tasks) + 1, error_response))
         
         except Exception as e:
             logger.error(f"Error in parallel processing: {str(e)}")
@@ -269,33 +275,51 @@ Now, apply this framework to answer the question thoroughly and provide a detail
         answers = [answer for _, answer in completed_tasks]
         
         processing_time = time.time() - start_time
-        logger.info(f"Completed all {len(questions)} questions with enhanced reasoning in {processing_time:.2f} seconds")
+        logger.info(f"Completed all {len(questions)} questions in {processing_time:.2f} seconds")
         logger.info(f"Average time per question: {processing_time/len(questions):.2f} seconds")
         
         return answers
     
     async def answer_questions_sequential(self, gemini_file, questions: List[str]) -> List[str]:
-        """Fallback sequential processing method with enhanced reasoning"""
-        logger.info("Using enhanced sequential processing as fallback")
+        """Fallback sequential processing method"""
+        logger.info("Using sequential processing as fallback")
         answers = []
         
         for i, question in enumerate(questions, 1):
             try:
-                logger.info(f"Processing question {i}/{len(questions)} with enhanced reasoning: {question[:50]}...")
+                logger.info(f"Processing question {i}/{len(questions)}: {question[:50]}...")
                 
-                # Use the enhanced prompt
-                enhanced_prompt = self.create_enhanced_prompt(question)
+                # Use the enhanced prompt for sequential processing too
+                prompt = self.create_enhanced_prompt(question)
                 
-                response = self.model.generate_content([enhanced_prompt, gemini_file])
+                response = self.model.generate_content([prompt, gemini_file])
                 answer = response.text.strip()
-                answers.append(answer)
+                
+                # Ensure 5-line format
+                lines = answer.split('\n')
+                lines = [line.strip() for line in lines if line.strip()]
+                
+                if len(lines) != 5:
+                    if len(lines) < 5:
+                        while len(lines) < 5:
+                            lines.append("Additional context may be limited in the source document.")
+                    else:
+                        lines = lines[:5]
+                
+                formatted_answer = '\n'.join(lines)
+                answers.append(formatted_answer)
                 
                 # Small delay to avoid rate limiting
                 await asyncio.sleep(0.5)
                 
             except Exception as e:
                 logger.error(f"Error answering question {i}: {str(e)}")
-                answers.append(f"Error processing question: {str(e)}")
+                error_response = f"""Error processing question: {str(e)}
+                Sequential processing encountered an issue with this specific question.
+                This may be due to document complexity or question formatting.
+                Please try rephrasing the question or check document accessibility.
+                Other questions in the batch may process successfully."""
+                answers.append(error_response)
         
         return answers
     
@@ -313,9 +337,9 @@ processor = GeminiDocumentProcessor(max_concurrent_questions=8)  # Adjust based 
 @app.get("/")
 async def root():
     return {
-        "message": "Enhanced Document Q&A API with Advanced Reasoning and Parallel Processing", 
-        "version": "2.0.0",
-        "features": ["enhanced_reasoning", "detailed_responses", "parallel_processing", "rate_limiting", "thread_safe"]
+        "message": "Enhanced Document Q&A API with Detailed Reasoning", 
+        "version": "1.0.0",
+        "features": ["enhanced_prompting", "detailed_responses", "5_line_format", "parallel_processing", "rate_limiting", "thread_safe"]
     }
 
 @app.get("/health")
@@ -324,7 +348,7 @@ async def health_check():
         "status": "healthy", 
         "gemini_configured": bool(GEMINI_API_KEY),
         "max_concurrent_questions": processor.max_concurrent_questions,
-        "enhanced_reasoning": True
+        "response_format": "5_lines_detailed"
     }
 
 @app.post("/api/v1/hackrx/run", response_model=DocumentResponse)
@@ -333,21 +357,14 @@ async def process_document(
     token: str = Depends(verify_token)
 ):
     """
-    Process a document and answer questions about it using enhanced reasoning and parallel processing
+    Process a document and answer questions about it using enhanced prompting for detailed responses
     
     - **documents**: URL to the document (PDF, DOCX, TXT)
-    - **questions**: List of questions to answer about the document (processed in parallel with enhanced reasoning)
-    
-    The enhanced system provides:
-    - Comprehensive document analysis
-    - Detailed, well-reasoned responses
-    - Structured answers with supporting evidence
-    - Context and implications
-    - Professional, thorough explanations
+    - **questions**: List of questions to answer about the document (each answer will be exactly 5 detailed lines)
     """
     
     try:
-        logger.info(f"Processing document with enhanced reasoning: {request.documents}")
+        logger.info(f"Processing document: {request.documents}")
         logger.info(f"Number of questions: {len(request.questions)}")
         
         # Download document
@@ -357,7 +374,7 @@ async def process_document(
         gemini_file = await processor.upload_to_gemini(temp_file_path)
         
         try:
-            # Answer questions in parallel with enhanced reasoning
+            # Answer questions in parallel with enhanced prompting
             answers = await processor.answer_questions_parallel(gemini_file, request.questions)
             
             return DocumentResponse(answers=answers)
@@ -381,20 +398,25 @@ async def process_multiple_documents(
     token: str = Depends(verify_token)
 ):
     """
-    Process multiple documents in batch with enhanced reasoning
-    (each document's questions are processed in parallel with detailed analysis)
+    Process multiple documents in batch (each document's questions are processed in parallel)
+    Each answer will be exactly 5 detailed lines with comprehensive reasoning
     """
     
     results = []
     
     for i, request in enumerate(requests, 1):
         try:
-            logger.info(f"Processing batch item {i}/{len(requests)} with enhanced reasoning")
+            logger.info(f"Processing batch item {i}/{len(requests)}")
             result = await process_document(request, token)
             results.append(result)
         except Exception as e:
             logger.error(f"Error processing batch item {i}: {str(e)}")
-            results.append(DocumentResponse(answers=[f"Error: {str(e)}"]))
+            error_response = f"""Batch processing error for document {i}: {str(e)}
+            The system encountered an issue while processing this specific document.
+            This may be due to document format, size, or accessibility issues.
+            Other documents in the batch may process successfully.
+            Please verify document format and accessibility for failed items."""
+            results.append(DocumentResponse(answers=[error_response]))
     
     return results
 
@@ -403,29 +425,27 @@ async def get_status(token: str = Depends(verify_token)):
     """Get API status and configuration"""
     return {
         "status": "operational",
-        "version": "2.0.0",
-        "gemini_model": "gemini-1.5-pro",
+        "gemini_model": "gemini-2.5-flash",
+        "model_features": "enhanced_reasoning_capabilities",
         "max_file_size": "2GB",
         "supported_formats": ["PDF", "DOCX", "TXT"],
         "authentication": "Bearer token required",
         "parallel_processing": True,
-        "enhanced_reasoning": True,
         "max_concurrent_questions": processor.max_concurrent_questions,
+        "response_format": {
+            "lines": 5,
+            "style": "detailed_comprehensive",
+            "reasoning": "gemini_2.5_enhanced_analytical"
+        },
         "features": {
-            "enhanced_prompting": "Systematic reasoning framework with detailed analysis",
-            "structured_responses": "Direct answer, explanation, evidence, context, and implications",
-            "comprehensive_analysis": "Multi-step reasoning process for thorough understanding",
+            "enhanced_prompting": "Structured analytical framework",
+            "detailed_responses": "5-line comprehensive answers",
+            "contextual_reasoning": "Multi-step analysis process with Gemini 2.5 capabilities",
+            "advanced_thinking": "Utilizing Gemini 2.5 Flash enhanced reasoning",
             "rate_limiting": "Built-in semaphore control",
             "thread_safety": "Thread-local model instances",
             "error_handling": "Graceful fallback to sequential processing",
             "progress_tracking": "Real-time completion logging"
-        },
-        "reasoning_framework": {
-            "document_comprehension": "Full document understanding and structure analysis",
-            "question_analysis": "Component breakdown and scope determination",
-            "information_extraction": "Systematic search and context identification",
-            "reasoning_synthesis": "Connection of concepts and pattern recognition",
-            "response_construction": "Structured, detailed answer formatting"
         }
     }
 
@@ -447,7 +467,7 @@ async def update_concurrency(
     return {
         "message": f"Concurrency limit updated to {max_concurrent}",
         "max_concurrent_questions": processor.max_concurrent_questions,
-        "enhanced_reasoning": "Enabled for all concurrent processing"
+        "response_format": "5_lines_detailed_maintained"
     }
 
 # Error handlers
@@ -473,9 +493,9 @@ if __name__ == "__main__":
     HOST = "0.0.0.0"
     PORT = 8000
     
-    logger.info(f"Starting enhanced server with advanced reasoning on {HOST}:{PORT}")
+    logger.info(f"Starting enhanced document Q&A server on {HOST}:{PORT}")
     logger.info(f"Max concurrent questions: {processor.max_concurrent_questions}")
-    logger.info(f"Enhanced reasoning: Enabled")
+    logger.info(f"Response format: 5 detailed lines with comprehensive reasoning")
     logger.info(f"API Base URL: http://localhost:{PORT}/api/v1")
     logger.info(f"Documentation: http://localhost:{PORT}/docs")
     
