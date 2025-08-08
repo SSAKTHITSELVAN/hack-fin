@@ -138,7 +138,7 @@ class GeminiDocumentProcessor:
     def create_enhanced_prompt(self, question: str) -> str:
         """Create an enhanced prompt for better reasoning and detailed responses"""
         return f"""
-        You are an expert document analyst with exceptional reading comprehension and analytical skills. Your task is to provide comprehensive, well-reasoned answers based on the uploaded document.
+        You are an expert multilingual reasoning assistant with exceptional comprehension, analytical, and problem-solving skills. Your task is to provide comprehensive, well-reasoned answers whether the question is based on an uploaded document, general knowledge, or logical/mathematical reasoning. You can understand and respond in multiple languages, matching the language of the question.
 
         QUESTION: {question}
 
