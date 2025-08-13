@@ -36,7 +36,7 @@ app.add_middleware(
 
 # Security
 security = HTTPBearer()
-VALID_TOKEN = "8b19aa4e64ea7d5aa15448e401460637d5d9ba07e3a839ae961d745fb0910de3"
+VALID_TOKEN = ""
 GEMINI_API_KEY = "AIzaSyB8pAIHQ6uMWRgz_a1x_73JIK9jJTw0SQ8"
 
 # Initialize Gemini
